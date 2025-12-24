@@ -144,8 +144,23 @@ async def webhook(request: Request):
 
         # ================= 點時段（立即預約） =================
         elif user_text.startswith("SLOT|"):
-            slot_id = user_text.split("|", 1)[1].strip()
-            success = book_slot(slot_id, user_id)
+            slot_id = user_text.split("|", 1)[1]
+            
+            date, time_range = slot_id.split("T")
+            start, end = time_range.split("-")
+            
+            USER_SLOT_CACHE[user_id] = slot_id
+            
+            from flex_confirm import build_confirm_flex
+            
+            flex_message = FlexSendMessage(
+                alt_text="確認預約",
+                contents=build_confirm_flex(slot_id, date, start, end)
+            )
+            
+            line_bot_api.reply_message(event.reply_token, flex_message)
+            continue
+
 
             if success:
                 reply_text = f"✅ 預約成功！\n{slot_id.replace('T', ' ')}"
@@ -157,7 +172,24 @@ async def webhook(request: Request):
                 TextSendMessage(text=reply_text)
             )
             continue
-
+        #=============== comfirm處理
+        elif user_text.startswith("CONFIRM|"):
+            slot_id = user_text.split("|", 1)[1]
+            
+            success = book_slot(slot_id, user_id)
+            
+            if success:
+                reply_text = f"✅ 預約成功！\n{slot_id.replace('T', ' ')}"
+            else:
+                reply_text = "❌ 此時段已被其他人預約 😢"
+            
+            USER_SLOT_CACHE.pop(user_id, None)
+            
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=reply_text)
+            )
+            continue
         # ================= 取消 =================
         elif user_text == "取消":
             slots = get_user_booked_slots(user_id)
