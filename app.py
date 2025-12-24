@@ -9,9 +9,9 @@ from linebot.models import (
     FlexSendMessage,
 )
 from dotenv import load_dotenv
-from flex_coach import build_coach_day_slots
 
 from flex import build_schedule_carousel
+from flex_coach import build_coach_day_slots
 from db import (
     get_available_dates,
     get_available_slots_by_date,
@@ -21,14 +21,6 @@ from db import (
     cancel_slot,
 )
 
-def get_display_name(user_id: str) -> str:
-    try:
-        profile = line_bot_api.get_profile(user_id)
-        return profile.display_name
-    except Exception as e:
-        print("取得顯示名稱失敗:", e)
-        return "已預約"
-        
 # ===== 使用者暫存 =====
 USER_SELECTED_DATE = {}
 USER_SLOT_CACHE = {}
@@ -47,6 +39,14 @@ line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
 
 
+def get_display_name(user_id: str) -> str:
+    try:
+        profile = line_bot_api.get_profile(user_id)
+        return profile.display_name
+    except Exception:
+        return "已預約"
+
+
 @app.post("/webhook")
 async def webhook(request: Request):
     try:
@@ -62,17 +62,13 @@ async def webhook(request: Request):
         raise HTTPException(status_code=400, detail="Invalid signature")
 
     for event in events:
-        if not (
-            isinstance(event, MessageEvent)
-            and isinstance(event.message, TextMessage)
-        ):
+        if not isinstance(event, MessageEvent) or not isinstance(event.message, TextMessage):
             continue
 
         user_text = event.message.text.strip()
         user_id = event.source.user_id
 
-
-        # ===== 教練查課 =====
+        # ================= 教練查課 =================
         if user_id in COACH_IDS and user_text.startswith("查課"):
             parts = user_text.split()
 
@@ -103,45 +99,50 @@ async def webhook(request: Request):
             )
             continue
 
-        # ===== 預約（Flex）=====
+        # ================= 預約：Step 1 選日期 =================
         if user_text == "預約":
-            slots = []
-
             dates = get_available_dates()
-            for d in dates:
-                day_slots = get_available_slots_by_date(d)
-                slots.extend(day_slots)
+
+            if not dates:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="目前沒有可預約的日期 😢")
+                )
+                continue
+
+            from flex_date_picker import build_date_picker
+
+            flex_message = FlexSendMessage(
+                alt_text="請選擇日期",
+                contents=build_date_picker(dates)
+            )
+
+            line_bot_api.reply_message(event.reply_token, flex_message)
+            continue
+
+        # ================= 預約：Step 2 點日期 =================
+        elif user_text.startswith("DATE|"):
+            date = user_text.split("|", 1)[1]
+            USER_SELECTED_DATE[user_id] = date
+
+            slots = get_available_slots_by_date(date)
 
             if not slots:
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text="目前沒有可預約的時段 😢")
+                    TextSendMessage(text=f"{date} 沒有可預約的時段 😢")
                 )
                 continue
 
             flex_message = FlexSendMessage(
-                alt_text="下週課表",
+                alt_text=f"{date} 可預約時段",
                 contents=build_schedule_carousel(slots)
             )
 
             line_bot_api.reply_message(event.reply_token, flex_message)
             continue
 
-        # ===== 取消 =====
-        elif user_text == "取消":
-            slots = get_user_booked_slots(user_id)
-            USER_CANCEL_CACHE[user_id] = slots
-            USER_SLOT_CACHE.pop(user_id, None)
-
-            if not slots:
-                reply_text = "你目前沒有已預約的課程"
-            else:
-                lines = ["❌ 你的預約課程（輸入數字取消）："]
-                for idx, (_, date, start, end) in enumerate(slots, start=1):
-                    lines.append(f"{idx}. {date} {start}-{end}")
-                reply_text = "\n".join(lines)
-
-        # ===== 點 Flex 按鈕 =====
+        # ================= 點時段（立即預約） =================
         elif user_text.startswith("SLOT|"):
             slot_id = user_text.split("|", 1)[1].strip()
             success = book_slot(slot_id, user_id)
@@ -151,50 +152,67 @@ async def webhook(request: Request):
             else:
                 reply_text = "❌ 此時段已被預約"
 
-        # ===== 輸入數字 =====
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=reply_text)
+            )
+            continue
+
+        # ================= 取消 =================
+        elif user_text == "取消":
+            slots = get_user_booked_slots(user_id)
+            USER_CANCEL_CACHE[user_id] = slots
+
+            if not slots:
+                reply_text = "你目前沒有已預約的課程"
+            else:
+                lines = ["❌ 你的預約課程（輸入數字取消）："]
+                for idx, (_, date, start, end) in enumerate(slots, start=1):
+                    lines.append(f"{idx}. {date} {start}-{end}")
+                reply_text = "\n".join(lines)
+
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=reply_text)
+            )
+            continue
+
+        # ================= 輸入數字取消 =================
         elif user_text.isdigit():
             idx = int(user_text) - 1
 
-            if user_id in USER_CANCEL_CACHE:
-                slots = USER_CANCEL_CACHE[user_id]
+            if user_id not in USER_CANCEL_CACHE:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text="請先輸入「取消」")
+                )
+                continue
 
-                if idx < 0 or idx >= len(slots):
-                    reply_text = "請輸入正確的數字"
-                else:
-                    slot_id, date, start, end = slots[idx]
-                    success = cancel_slot(slot_id, user_id)
-                    reply_text = (
-                        f"❌ 已取消：\n{date} {start}-{end}"
-                        if success else "取消失敗，請稍後再試"
-                    )
+            slots = USER_CANCEL_CACHE[user_id]
 
-                USER_CANCEL_CACHE.pop(user_id, None)
-
-            elif user_id in USER_SLOT_CACHE:
-                slots = USER_SLOT_CACHE[user_id]
-
-                if idx < 0 or idx >= len(slots):
-                    reply_text = "請輸入正確的數字"
-                else:
-                    slot_id, date, start, end = slots[idx]
-                    success = book_slot(slot_id, user_id)
-                    reply_text = (
-                        f"✅ 預約成功！\n{date} {start}-{end}"
-                        if success else "❌ 此時段已被預約"
-                    )
-
-                USER_SLOT_CACHE.pop(user_id, None)
-
+            if idx < 0 or idx >= len(slots):
+                reply_text = "請輸入正確的數字"
             else:
-                reply_text = "請先輸入「預約」或「取消」"
+                slot_id, date, start, end = slots[idx]
+                success = cancel_slot(slot_id, user_id)
+                reply_text = (
+                    f"❌ 已取消：\n{date} {start}-{end}"
+                    if success else "取消失敗，請稍後再試"
+                )
 
-        # ===== 其他 =====
+            USER_CANCEL_CACHE.pop(user_id, None)
+
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=reply_text)
+            )
+            continue
+
+        # ================= 其他 =================
         else:
-            reply_text = "請輸入「預約」或「取消」"
-
-        line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=reply_text)
-        )
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="請輸入「預約」或「取消」")
+            )
 
     return "OK"
