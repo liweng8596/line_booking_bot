@@ -1,2 +1,5 @@
-flask
+fastapi
 gunicorn
+uvicorn
+line-bot-sdk
+python-dotenv
