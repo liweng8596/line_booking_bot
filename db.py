@@ -2,8 +2,10 @@ import sqlite3
 
 DB_NAME = "booking.db"
 
+# ================= 基本 =================
 def get_connection():
     return sqlite3.connect(DB_NAME)
+
 
 def init_db():
     conn = get_connection()
@@ -23,102 +25,17 @@ def init_db():
     conn.commit()
     conn.close()
 
-if __name__ == "__main__":
-    init_db()
-    print("資料庫初始化完成")
 
-
-
-def get_available_slots(limit=10):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    SELECT id, date, start_time, end_time
-    FROM slots
-    WHERE status = 'available'
-    ORDER BY date, start_time
-    LIMIT ?
-    """, (limit,))
-
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-def book_slot(slot_id, user_id):
-    conn = sqlite3.connect("booking.db")
-    cur = conn.cursor()
-
-    cur.execute("""
-        UPDATE slots
-        SET status = 'booked', student = ?
-        WHERE slot_id = ? AND status = 'available'
-    """, (user_id, slot_id))
-
-    success = cur.rowcount == 1
-    conn.commit()
-    conn.close()
-
-    return success
-
-
-
-def get_available_slots_with_index(limit=10):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    SELECT id, date, start_time, end_time
-    FROM slots
-    WHERE status = 'available'
-    ORDER BY date, start_time
-    LIMIT ?
-    """, (limit,))
-
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-def get_user_booked_slots(user_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    SELECT id, date, start_time, end_time
-    FROM slots
-    WHERE status = 'booked' AND user_id = ?
-    ORDER BY date, start_time
-    """, (user_id,))
-
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-
-def cancel_slot(slot_id, user_id):
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    UPDATE slots
-    SET status = 'available', user_id = NULL
-    WHERE id = ? AND user_id = ?
-    """, (slot_id, user_id))
-
-    success = cursor.rowcount == 1
-    conn.commit()
-    conn.close()
-    return success
-
+# ================= 查詢 =================
 def get_available_dates():
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-    SELECT DISTINCT date
-    FROM slots
-    WHERE status = 'available'
-    ORDER BY date
+        SELECT DISTINCT date
+        FROM slots
+        WHERE status = 'available'
+        ORDER BY date
     """)
 
     dates = [row[0] for row in cursor.fetchall()]
@@ -157,24 +74,86 @@ def get_all_slots_by_date(date):
     rows = cursor.fetchall()
     conn.close()
     return rows
+
+
+def get_user_booked_slots(user_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id, date, start_time, end_time
+        FROM slots
+        WHERE status = 'booked'
+          AND user_id = ?
+        ORDER BY date, start_time
+    """, (user_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+
+# ================= 動作 =================
+def book_slot(slot_id, user_id):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE slots
+        SET status = 'booked',
+            user_id = ?
+        WHERE id = ?
+          AND status = 'available'
+    """, (user_id, slot_id))
+
+    success = cur.rowcount == 1
+    conn.commit()
+    conn.close()
+    return success
+
+
+def cancel_slot(slot_id, user_id):
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE slots
+        SET status = 'available',
+            user_id = NULL
+        WHERE id = ?
+          AND user_id = ?
+    """, (slot_id, user_id))
+
+    success = cur.rowcount == 1
+    conn.commit()
+    conn.close()
+    return success
+
+
 def lock_slot(slot_id):
     conn = get_connection()
     cur = conn.cursor()
+
     cur.execute("""
         UPDATE slots
         SET status = 'blocked'
         WHERE id = ?
     """, (slot_id,))
+
     conn.commit()
     conn.close()
+
 
 def unlock_slot(slot_id):
     conn = get_connection()
     cur = conn.cursor()
+
     cur.execute("""
         UPDATE slots
-        SET status = 'available', user_id = NULL
+        SET status = 'available',
+            user_id = NULL
         WHERE id = ?
     """, (slot_id,))
+
     conn.commit()
     conn.close()
