@@ -23,7 +23,7 @@ def build_confirm_flex(slot_id, date, start, end):
                     "action": {
                         "type": "postback",
                         "label": "✅ 確認預約",
-                        "data": f"CONFIRM|{date}T{start}-{end}"
+                        "data": f"CONFIRM|{slot_id}"
                     }
                 }
             ]
