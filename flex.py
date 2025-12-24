@@ -21,16 +21,17 @@ def build_schedule_carousel(slots):
             }
         ]
 
-        for slot_id, start, end in day_slots[:5]:
-            contents.append({
-                "type": "button",
-                "style": "secondary",
-                "action": {
-                    "type": "postback",
-                    "label": f"{start}–{end}",
-                    "data": f"SLOT|{slot_id}"
-                }
-            })
+    for slot_id, start, end in day_slots[:5]:
+        contents.append({
+            "type": "button",
+            "style": "secondary",
+            "action": {
+                "type": "postback",
+                "label": f"{start}–{end}",
+                "data": f"SLOT|{date}T{start}-{end}"
+            }
+        })
+
 
         bubbles.append({
             "type": "bubble",

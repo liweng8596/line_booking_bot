@@ -21,6 +21,17 @@ from db import (
     get_user_booked_slots,
     cancel_slot,
 )
+from linebot.models import QuickReply, QuickReplyButton, MessageAction
+# ================= 共用 Quick Reply =================
+def main_quick_reply():
+    return QuickReply(items=[
+        QuickReplyButton(
+            action=MessageAction(label="📅 預約", text="預約")
+        ),
+        QuickReplyButton(
+            action=MessageAction(label="❌ 取消", text="取消")
+        )
+    ])
 
 # ================= 使用者狀態暫存 =================
 USER_SELECTED_DATE = {}
@@ -227,7 +238,9 @@ async def webhook(request: Request):
             # ---------- 其他 ----------
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="請輸入「預約」或「取消」")
+                TextSendMessage(
+                    text="請選擇功能 👇",
+                    quick_reply=main_quick_reply()
+                )
             )
-
     return "OK"
