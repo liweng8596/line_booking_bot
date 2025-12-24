@@ -20,6 +20,7 @@ from db import (
     get_user_booked_slots,
     cancel_slot,
 )
+from flex_coach_day import build_coach_day_flex
 
 # ===== 使用者暫存 =====
 USER_SELECTED_DATE = {}
@@ -69,35 +70,12 @@ async def webhook(request: Request):
         user_id = event.source.user_id
 
         # ================= 教練查課 =================
-        if user_id in COACH_IDS and user_text.startswith("查課"):
-            parts = user_text.split()
-
-            if len(parts) != 2:
-                reply_text = "用法：查課 YYYY-MM-DD"
-            else:
-                date = parts[1]
-                slots = get_all_slots_by_date(date)
-
-                if not slots:
-                    reply_text = f"{date} 沒有任何課程"
-                else:
-                    lines = [f"📅 {date} 課表"]
-                    for _, _, start, end, status, student in slots:
-                        if status == "booked":
-                            name = get_display_name(student)
-                            lines.append(f"{start}–{end}｜{name}")
-                        elif status == "blocked":
-                            lines.append(f"{start}–{end}｜（固定課）")
-                        else:
-                            lines.append(f"{start}–{end}｜（空堂）")
-
-                    reply_text = "\n".join(lines)
-
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=reply_text)
-            )
-            continue
+        flex_message = FlexSendMessage(
+               alt_text=f"{date} 課表",
+               contents=build_coach_day_flex(date, slots)
+        )
+           
+        line_bot_api.reply_message(event.reply_token, flex_message)
 
         # ================= 預約：Step 1 選日期 =================
         if user_text == "預約":
@@ -210,36 +188,50 @@ async def webhook(request: Request):
             continue
 
         # ================= 輸入數字取消 =================
-        elif user_text.isdigit():
+        elif user_text.isdigit() and user_id in USER_CANCEL_CACHE:
             idx = int(user_text) - 1
-
-            if user_id not in USER_CANCEL_CACHE:
-                line_bot_api.reply_message(
-                    event.reply_token,
-                    TextSendMessage(text="請先輸入「取消」")
-                )
-                continue
-
             slots = USER_CANCEL_CACHE[user_id]
-
+        
             if idx < 0 or idx >= len(slots):
                 reply_text = "請輸入正確的數字"
-            else:
-                slot_id, date, start, end = slots[idx]
-                success = cancel_slot(slot_id, user_id)
-                reply_text = (
-                    f"❌ 已取消：\n{date} {start}-{end}"
-                    if success else "取消失敗，請稍後再試"
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=reply_text)
                 )
-
+                continue
+        
+            slot_id, date, start, end = slots[idx]
+        
+            from flex_cancel_confirm import build_cancel_confirm_flex
+        
+            USER_SLOT_CACHE[user_id] = slot_id  # 暫存要取消的
+        
+            flex_message = FlexSendMessage(
+                alt_text="確認取消預約",
+                contents=build_cancel_confirm_flex(slot_id, date, start, end)
+            )
+        
+            line_bot_api.reply_message(event.reply_token, flex_message)
+            continue
+        #===================確認取消=================
+        elif user_text.startswith("CANCEL_CONFIRM|"):
+            slot_id = user_text.split("|", 1)[1]
+           
+            success = cancel_slot(slot_id, user_id)
+           
+            if success:
+                reply_text = "❌ 已成功取消預約"
+            else:
+                reply_text = "取消失敗，請稍後再試"
+           
             USER_CANCEL_CACHE.pop(user_id, None)
-
+            USER_SLOT_CACHE.pop(user_id, None)
+           
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text=reply_text)
             )
             continue
-
         # ================= 其他 =================
         else:
             line_bot_api.reply_message(
