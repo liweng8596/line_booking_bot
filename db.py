@@ -45,24 +45,22 @@ def get_available_slots(limit=10):
     conn.close()
     return rows
 
-
 def book_slot(slot_id, user_id):
-    conn = get_connection()
-    print("DB PATH =", conn.execute("PRAGMA database_list").fetchall())
-    cursor = conn.cursor()
+    conn = sqlite3.connect("booking.db")
+    cur = conn.cursor()
 
-    # 只允許 available → booked
-    cursor.execute("""
-    UPDATE slots
-    SET status = 'booked', user_id = ?
-    WHERE id = ? AND status = 'available'
+    cur.execute("""
+        UPDATE slots
+        SET status = 'booked', student = ?
+        WHERE slot_id = ? AND status = 'available'
     """, (user_id, slot_id))
 
-    success = cursor.rowcount == 1
-
+    success = cur.rowcount == 1
     conn.commit()
     conn.close()
+
     return success
+
 
 
 def get_available_slots_with_index(limit=10):
