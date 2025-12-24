@@ -22,6 +22,8 @@ from db import (
     cancel_slot,
 )
 from linebot.models import QuickReply, QuickReplyButton, MessageAction
+from flex_day_slots import build_day_slots
+
 # ================= 共用 Quick Reply =================
 def main_quick_reply():
     return QuickReply(items=[
@@ -29,7 +31,7 @@ def main_quick_reply():
             action=MessageAction(label="📅 預約", text="預約")
         ),
         QuickReplyButton(
-            action=MessageAction(label="❌ 取消", text="取消")
+            action=MessageAction(label="❌ 取消", text="如需重新預約，請點下方「預約」")
         )
     ])
 
@@ -89,7 +91,7 @@ async def webhook(request: Request):
 
                 flex = FlexSendMessage(
                     alt_text=f"{date} 可預約時段",
-                    contents=build_schedule_carousel(slots)
+                    contents=build_day_slots(date, slots)
                 )
 
                 line_bot_api.reply_message(
