@@ -1,40 +1,36 @@
-def build_date_picker(dates: list[str]):
-    bubbles = []
+def build_date_picker(dates):
+    buttons = []
 
     for d in dates:
-        bubbles.append({
-            "type": "bubble",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": f"日期 {d}",
-                        "weight": "bold",
-                        "size": "lg",
-                        "align": "center"
-                    }
-                ]
-            },
-            "footer": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "button",
-                        "style": "primary",
-                        "action": {
-                            "type": "postback",   # ✅ 改這裡
-                            "label": "選擇這天",
-                            "data": f"DATE|{d}"  # ✅ text → data
-                        }
-                    }
-                ]
+        buttons.append({
+            "type": "button",
+            "style": "secondary",
+            "action": {
+                "type": "postback",   # ✅ 一定要是 postback
+                "label": d,
+                "data": f"DATE|{d}"   # ✅ 不是 text
             }
         })
 
     return {
-        "type": "carousel",
-        "contents": bubbles
+        "type": "bubble",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "md",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "📅 請選擇日期",
+                    "weight": "bold",
+                    "size": "lg"
+                },
+                {
+                    "type": "box",
+                    "layout": "vertical",
+                    "spacing": "sm",
+                    "contents": buttons
+                }
+            ]
+        }
     }
