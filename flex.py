@@ -2,7 +2,7 @@ from collections import defaultdict
 
 def build_schedule_carousel(slots):
     """
-    slots: [(id, date, start_time, end_time), ...]
+    slots: [(slot_id, date, start_time, end_time), ...]
     """
     grouped = defaultdict(list)
 
@@ -26,4 +26,23 @@ def build_schedule_carousel(slots):
                 "type": "button",
                 "style": "secondary",
                 "action": {
-                    "type": "pos
+                    "type": "postback",
+                    "label": f"{start}–{end}",
+                    "data": f"SLOT|{slot_id}"
+                }
+            })
+
+        bubbles.append({
+            "type": "bubble",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "md",
+                "contents": contents
+            }
+        })
+
+    return {
+        "type": "carousel",
+        "contents": bubbles
+    }
