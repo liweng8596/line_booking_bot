@@ -25,9 +25,9 @@ def build_date_picker(dates: list[str]):
                         "type": "button",
                         "style": "primary",
                         "action": {
-                            "type": "message",
+                            "type": "postback",   # ✅ 改這裡
                             "label": "選擇這天",
-                            "text": f"DATE|{d}"
+                            "data": f"DATE|{d}"  # ✅ text → data
                         }
                     }
                 ]

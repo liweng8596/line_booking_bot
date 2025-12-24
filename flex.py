@@ -26,24 +26,4 @@ def build_schedule_carousel(slots):
                 "type": "button",
                 "style": "secondary",
                 "action": {
-                    "type": "message",
-                    "label": f"{start}–{end}",
-                    # ⭐ 關鍵：傳 DB 的 id
-                    "text": f"SLOT|{slot_id}"
-                }
-            })
-
-        bubbles.append({
-            "type": "bubble",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "spacing": "md",
-                "contents": contents
-            }
-        })
-
-    return {
-        "type": "carousel",
-        "contents": bubbles
-    }
+                    "type": "pos

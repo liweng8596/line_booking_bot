@@ -26,16 +26,16 @@ def build_confirm_flex(slot_id: str, date: str, start: str, end: str):
                     "type": "button",
                     "style": "primary",
                     "action": {
-                        "type": "message",
+                        "type": "postback",              # ✅ 改這裡
                         "label": "確認預約",
-                        "text": f"CONFIRM|{slot_id}"
+                        "data": f"CONFIRM|{slot_id}"    # ✅ text → data
                     }
                 },
                 {
                     "type": "button",
                     "style": "secondary",
                     "action": {
-                        "type": "message",
+                        "type": "message",              # ⭕ 保留 message
                         "label": "取消",
                         "text": "取消"
                     }
