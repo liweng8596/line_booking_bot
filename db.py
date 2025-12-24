@@ -98,6 +98,13 @@ def book_slot(slot_id, user_id):
     conn = get_connection()
     cur = conn.cursor()
 
+    print("DEBUG book_slot:")
+    print("  slot_id =", slot_id)
+
+    cur.execute("SELECT id, status FROM slots WHERE id = ?", (slot_id,))
+    row = cur.fetchone()
+    print("  DB row =", row)
+
     cur.execute("""
         UPDATE slots
         SET status = 'booked',
@@ -106,10 +113,13 @@ def book_slot(slot_id, user_id):
           AND status = 'available'
     """, (user_id, slot_id))
 
+    print("  rowcount =", cur.rowcount)
+
     success = cur.rowcount == 1
     conn.commit()
     conn.close()
     return success
+
 
 
 def cancel_slot(slot_id, user_id):
