@@ -54,7 +54,6 @@ async def webhook(request: Request):
     except InvalidSignatureError:
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    # ===== 處理事件 =====
     for event in events:
         user_id = event.source.user_id
 
@@ -95,7 +94,6 @@ async def webhook(request: Request):
             if data.startswith("SLOT|"):
                 slot_id = data.split("|", 1)[1]
 
-                # 防呆（不再炸）
                 if "T" not in slot_id or "-" not in slot_id:
                     line_bot_api.reply_message(
                         event.reply_token,
@@ -157,47 +155,55 @@ async def webhook(request: Request):
                 continue
 
         # =====================================================
-        # 👨‍🏫 教練查課（Flex）
+        # 🟩 文字訊息（MessageEvent）
         # =====================================================
+        if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
+            user_text = event.message.text.strip()
+
+            # ---------- 👨‍🏫 教練查課 ----------
             if user_id in COACH_IDS and user_text.startswith("查課"):
                 parts = user_text.split()
                 if len(parts) != 2:
-                    reply = "用法：查課 YYYY-MM-DD"
-                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text="用法：查課 YYYY-MM-DD")
+                    )
                     continue
-            
+
                 date = parts[1]
                 slots = get_all_slots_by_date(date)
-            
                 if not slots:
-                    reply = f"{date} 沒有任何課程"
-                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text=f"{date} 沒有任何課程")
+                    )
                     continue
-            
+
                 flex = FlexSendMessage(
                     alt_text=f"{date} 課表",
                     contents=build_coach_day_flex(date, slots)
                 )
                 line_bot_api.reply_message(event.reply_token, flex)
                 continue
-                # ---------- 📅 預約 ----------
-                if user_text == "預約":
-                    from flex_date_picker import build_date_picker
-            
-                    dates = get_available_dates()
-                    if not dates:
-                        line_bot_api.reply_message(
-                            event.reply_token,
-                            TextSendMessage(text="目前沒有可預約的日期 😢")
-                        )
-                        continue
-            
-                    flex = FlexSendMessage(
-                        alt_text="請選擇日期",
-                        contents=build_date_picker(dates)
+
+            # ---------- 📅 預約 ----------
+            if user_text == "預約":
+                from flex_date_picker import build_date_picker
+
+                dates = get_available_dates()
+                if not dates:
+                    line_bot_api.reply_message(
+                        event.reply_token,
+                        TextSendMessage(text="目前沒有可預約的日期 😢")
                     )
-                    line_bot_api.reply_message(event.reply_token, flex)
                     continue
+
+                flex = FlexSendMessage(
+                    alt_text="請選擇日期",
+                    contents=build_date_picker(dates)
+                )
+                line_bot_api.reply_message(event.reply_token, flex)
+                continue
 
             # ---------- ❌ 取消 ----------
             if user_text == "取消":
