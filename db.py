@@ -188,3 +188,23 @@ def get_tomorrow_bookings():
     conn.close()
 
     return rows
+
+
+def get_tomorrow_schedule_for_coach():
+    tomorrow = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT user_id, start_time, end_time
+        FROM slots
+        WHERE date = ?
+          AND booked = 1
+        ORDER BY start_time
+    """, (tomorrow,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return tomorrow, rows
