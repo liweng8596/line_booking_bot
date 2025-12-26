@@ -55,6 +55,11 @@ line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
 
 
+@app.api_route("/", methods=["GET", "HEAD"])
+async def root():
+    return PlainTextResponse("ok")
+
+
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
     return PlainTextResponse("ok")
