@@ -54,7 +54,7 @@ app = FastAPI()
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
-    return {"status": "ok"}
+    return PlainTextResponse("ok")
 
 
 @app.post("/webhook")
