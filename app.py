@@ -243,13 +243,23 @@ async def webhook(request: Request):
                 )
                 line_bot_api.reply_message(event.reply_token, flex)
                 continue
-
-            # ---------- 其他 ----------
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(
-                    text="請選擇功能 👇",
-                    quick_reply=main_quick_reply()
+              # ---------- 回上一頁 ----------
+            if data == "BACK|DATE":
+                from flex_date_picker import build_date_picker
+                dates = get_available_dates()
+                flex = FlexSendMessage(
+                    alt_text="請選擇日期",
+                    contents=build_date_picker(dates)
                 )
-            )
+                line_bot_api.reply_message(event.reply_token, flex)
+                continue
+    # ---------- 其他 ----------
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(
+            text="請選擇功能 👇",
+            quick_reply=main_quick_reply()
+        )
+    )
+
     return "OK"

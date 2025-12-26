@@ -1,8 +1,11 @@
 import sqlite3
+from datetime import date, timedelta
 
 DB_NAME = "booking.db"
 
 # ================= 基本 =================
+
+
 def get_connection():
     return sqlite3.connect(DB_NAME)
 
@@ -121,7 +124,6 @@ def book_slot(slot_id, user_id):
     return success
 
 
-
 def cancel_slot(slot_id, user_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -167,3 +169,22 @@ def unlock_slot(slot_id):
 
     conn.commit()
     conn.close()
+
+
+def get_tomorrow_bookings():
+    tomorrow = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT user_id, date, start_time, end_time
+        FROM slots
+        WHERE date = ?
+          AND booked = 1
+    """, (tomorrow,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return rows
