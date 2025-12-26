@@ -1,7 +1,18 @@
+from datetime import datetime
+
+
 def build_day_slots(date, slots):
+    """
+    slots: DB 回傳的任意 tuple
+    我們只取 start / end（倒數兩個欄位）
+    """
     buttons = []
 
-    for start, end in slots:
+    for row in slots:
+        # ✅ 保證不管 DB 回傳幾個欄位都安全
+        start = row[-2]
+        end = row[-1]
+
         buttons.append({
             "type": "button",
             "style": "secondary",
