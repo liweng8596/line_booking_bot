@@ -53,7 +53,6 @@ app = FastAPI()
 
 line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
-app = FastAPI()
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
@@ -134,10 +133,7 @@ async def webhook(request: Request):
 
                 line_bot_api.reply_message(
                     event.reply_token,
-                    [
-                        TextSendMessage(text=f"⏰ 已選擇時段：{start}-{end}"),
-                        flex
-                    ]
+                    flex
                 )
                 continue
 
