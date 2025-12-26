@@ -54,6 +54,9 @@ parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
 @app.get("/")
 def health():
     return {"status": "ok"}
+@app.get("/")
+async def health_check():
+    return {"status": "ok"}
 
 
 @app.post("/webhook")
