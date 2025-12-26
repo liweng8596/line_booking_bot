@@ -186,3 +186,27 @@ def get_open_status_for_range(days: int = 14):
                 results.append((date_str, "closed", "default"))
 
     return results
+
+
+def cancel_slot_by_time(date_str, start_time, end_time, user_id):
+    """
+    取消指定時段的預約（使用 date + time）
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE slots
+        SET status = 'available',
+            user_id = NULL
+        WHERE date = ?
+          AND start_time = ?
+          AND end_time = ?
+          AND status = 'booked'
+          AND user_id = ?
+    """, (date_str, start_time, end_time, user_id))
+
+    success = cur.rowcount == 1
+    conn.commit()
+    conn.close()
+    return success

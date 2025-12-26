@@ -1,4 +1,4 @@
-def build_cancel_confirm_flex(slot_id, date, start, end):
+def build_cancel_confirm_flex(date, start, end):
     return {
         "type": "bubble",
         "body": {
@@ -26,9 +26,9 @@ def build_cancel_confirm_flex(slot_id, date, start, end):
                     "type": "button",
                     "style": "primary",
                     "action": {
-                        "type": "message",
+                        "type": "postback",
                         "label": "確認取消",
-                        "text": f"CANCEL_CONFIRM|{slot_id}"
+                        "data": f"CANCEL_CONFIRM|{date}|{start}|{end}"
                     }
                 },
                 {
