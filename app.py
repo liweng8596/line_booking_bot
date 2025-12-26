@@ -50,12 +50,10 @@ app = FastAPI()
 
 line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
+app = FastAPI()
 
-@app.get("/")
-def health():
-    return {"status": "ok"}
-@app.get("/")
-async def health_check():
+@app.api_route("/", methods=["GET", "HEAD"])
+async def health():
     return {"status": "ok"}
 
 
