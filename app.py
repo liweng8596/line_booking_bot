@@ -10,7 +10,7 @@ from linebot.models import (
     PostbackEvent,
 )
 from dotenv import load_dotenv
-
+from fastapi.responses import PlainTextResponse
 from flex import build_schedule_carousel
 from flex_coach_day import build_coach_day_flex
 from db import (
@@ -25,6 +25,8 @@ from linebot.models import QuickReply, QuickReplyButton, MessageAction
 from flex_day_slots import build_day_slots
 
 # ================= 共用 Quick Reply =================
+
+
 def main_quick_reply():
     return QuickReply(items=[
         QuickReplyButton(
@@ -34,6 +36,7 @@ def main_quick_reply():
             action=MessageAction(label="❌ 取消", text="如需重新預約，請點下方「預約」")
         )
     ])
+
 
 # ================= 使用者狀態暫存 =================
 USER_SELECTED_DATE = {}
@@ -51,6 +54,7 @@ app = FastAPI()
 line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
 app = FastAPI()
+
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 async def health():
@@ -90,7 +94,7 @@ async def webhook(request: Request):
                 if not slots:
                     line_bot_api.reply_message(
                         event.reply_token,
-                        TextSendMessage(text=f"{date} 沒有可預約的時段 😢")
+                        TextSendMessage(text=f"{date} 沒有可預約的時段")
                     )
                     continue
 
@@ -101,10 +105,7 @@ async def webhook(request: Request):
 
                 line_bot_api.reply_message(
                     event.reply_token,
-                    [
-                        TextSendMessage(text=f"📅 已選擇日期：{date}"),
-                        flex
-                    ]
+                    flex
                 )
                 continue
 
