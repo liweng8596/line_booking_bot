@@ -98,23 +98,33 @@ def get_user_booked_slots(user_id):
 
 # ================= 動作 =================
 def book_slot(slot_id, user_id):
+    """
+    slot_id 格式：YYYY-MM-DDT10:00-11:00
+    """
+    try:
+        date_part, time_part = slot_id.split("T", 1)
+        start, end = time_part.split("-", 1)
+    except ValueError:
+        print("❌ slot_id format error:", slot_id)
+        return False
+
     conn = get_connection()
     cur = conn.cursor()
 
     print("DEBUG book_slot:")
-    print("  slot_id =", slot_id)
-
-    cur.execute("SELECT id, status FROM slots WHERE id = ?", (slot_id,))
-    row = cur.fetchone()
-    print("  DB row =", row)
+    print("  date =", date_part)
+    print("  start =", start)
+    print("  end =", end)
 
     cur.execute("""
         UPDATE slots
         SET status = 'booked',
             user_id = ?
-        WHERE id = ?
+        WHERE date = ?
+          AND start_time = ?
+          AND end_time = ?
           AND status = 'available'
-    """, (user_id, slot_id))
+    """, (user_id, date_part, start, end))
 
     print("  rowcount =", cur.rowcount)
 
