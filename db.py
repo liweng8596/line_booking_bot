@@ -1,5 +1,5 @@
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 DB_NAME = "booking.db"
 
@@ -25,25 +25,55 @@ def init_db():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS date_overrides (
+        date TEXT PRIMARY KEY,
+        status TEXT NOT NULL CHECK (status IN ('open', 'closed')),
+        reason TEXT,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
     conn.commit()
     conn.close()
 
+# ================= 判斷某天是否開課 =================
+
+
+def is_open_date(date_str: str) -> bool:
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "SELECT status FROM date_overrides WHERE date = ?",
+        (date_str,)
+    )
+    row = cur.fetchone()
+    conn.close()
+
+    if row:
+        return row[0] == "open"
+
+    weekday = datetime.strptime(date_str, "%Y-%m-%d").weekday()
+    return weekday <= 3   # 週一～週四開
 
 # ================= 查詢 =================
+
+
 def get_available_dates():
     conn = get_connection()
-    cursor = conn.cursor()
+    cur = conn.cursor()
 
-    cursor.execute("""
+    cur.execute("""
         SELECT DISTINCT date
         FROM slots
         WHERE status = 'available'
         ORDER BY date
     """)
-
-    dates = [row[0] for row in cursor.fetchall()]
+    rows = cur.fetchall()
     conn.close()
-    return dates
+
+    return [d for (d,) in rows if is_open_date(d)]
 
 
 def get_available_slots_by_date(date):
@@ -51,7 +81,7 @@ def get_available_slots_by_date(date):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, date, start_time, end_time
+        SELECT date, start_time, end_time
         FROM slots
         WHERE date = ?
           AND status = 'available'
@@ -68,7 +98,7 @@ def get_all_slots_by_date(date):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, date, start_time, end_time, status, user_id
+        SELECT date, start_time, end_time, status, user_id
         FROM slots
         WHERE date = ?
         ORDER BY start_time
@@ -84,7 +114,7 @@ def get_user_booked_slots(user_id):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT id, date, start_time, end_time
+        SELECT date, start_time, end_time
         FROM slots
         WHERE status = 'booked'
           AND user_id = ?
@@ -95,26 +125,18 @@ def get_user_booked_slots(user_id):
     conn.close()
     return rows
 
-
 # ================= 動作 =================
+
+
 def book_slot(slot_id, user_id):
-    """
-    slot_id 格式：YYYY-MM-DDT10:00-11:00
-    """
     try:
         date_part, time_part = slot_id.split("T", 1)
         start, end = time_part.split("-", 1)
     except ValueError:
-        print("❌ slot_id format error:", slot_id)
         return False
 
     conn = get_connection()
     cur = conn.cursor()
-
-    print("DEBUG book_slot:")
-    print("  date =", date_part)
-    print("  start =", start)
-    print("  end =", end)
 
     cur.execute("""
         UPDATE slots
@@ -126,95 +148,41 @@ def book_slot(slot_id, user_id):
           AND status = 'available'
     """, (user_id, date_part, start, end))
 
-    print("  rowcount =", cur.rowcount)
-
     success = cur.rowcount == 1
     conn.commit()
     conn.close()
     return success
 
 
-def cancel_slot(slot_id, user_id):
-    conn = get_connection()
-    cur = conn.cursor()
+def get_open_status_for_range(days: int = 14):
+    """
+    回傳未來 N 天的 (date_str, status, source)
+    status: 'open' / 'closed'
+    source: 'default' / 'override'
+    """
+    today = date.today()
+    results = []
 
-    cur.execute("""
-        UPDATE slots
-        SET status = 'available',
-            user_id = NULL
-        WHERE id = ?
-          AND user_id = ?
-    """, (slot_id, user_id))
+    for i in range(days):
+        d = today + timedelta(days=i)
+        date_str = d.strftime("%Y-%m-%d")
 
-    success = cur.rowcount == 1
-    conn.commit()
-    conn.close()
-    return success
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT status FROM date_overrides WHERE date = ?",
+            (date_str,)
+        )
+        row = cur.fetchone()
+        conn.close()
 
+        if row:
+            results.append((date_str, row[0], "override"))
+        else:
+            weekday = d.weekday()
+            if weekday <= 3:
+                results.append((date_str, "open", "default"))
+            else:
+                results.append((date_str, "closed", "default"))
 
-def lock_slot(slot_id):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        UPDATE slots
-        SET status = 'blocked'
-        WHERE id = ?
-    """, (slot_id,))
-
-    conn.commit()
-    conn.close()
-
-
-def unlock_slot(slot_id):
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("""
-        UPDATE slots
-        SET status = 'available',
-            user_id = NULL
-        WHERE id = ?
-    """, (slot_id,))
-
-    conn.commit()
-    conn.close()
-
-
-def get_tomorrow_bookings():
-    tomorrow = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT user_id, date, start_time, end_time
-        FROM slots
-        WHERE date = ?
-          AND booked = 1
-    """, (tomorrow,))
-
-    rows = cursor.fetchall()
-    conn.close()
-
-    return rows
-
-
-def get_tomorrow_schedule_for_coach():
-    tomorrow = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT user_id, start_time, end_time
-        FROM slots
-        WHERE date = ?
-          AND booked = 1
-        ORDER BY start_time
-    """, (tomorrow,))
-
-    rows = cursor.fetchall()
-    conn.close()
-
-    return tomorrow, rows
+    return results

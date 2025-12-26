@@ -1,3 +1,5 @@
+from datetime import datetime
+from db import get_open_status_for_range
 import os
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import PlainTextResponse
@@ -88,6 +90,43 @@ async def webhook(request: Request):
             continue
 
     return "OK"
+
+
+def handle_message(event: MessageEvent, user_id: str):
+    text = event.message.text.strip()
+
+    # ================= 教練：查未來課表 =================
+    if user_id in COACH_IDS and text.startswith("課表"):
+        parts = text.split()
+        days = 14
+
+        if len(parts) == 2:
+            try:
+                days = int(parts[1])
+            except ValueError:
+                reply_text(event, "用法：課表 或 課表 14")
+                return
+
+        rows = get_open_status_for_range(days)
+
+        lines = ["📅 未來 {} 天課表狀態\n".format(days)]
+        for date_str, status, source in rows:
+            dt = datetime.strptime(date_str, "%Y-%m-%d")
+            weekday = "一二三四五六日"[dt.weekday()]
+
+            if status == "open" and source == "override":
+                icon = "🔓"
+            elif status == "open":
+                icon = "✅"
+            else:
+                icon = "❌"
+
+            lines.append(f"{dt.month:02}/{dt.day:02}（{weekday}） {icon}")
+
+        reply_text(event, "\n".join(lines))
+        return
+
+    # ===== 下面接原本邏輯 =====
 
 
 # ================= Postback Handler =================
