@@ -51,6 +51,10 @@ app = FastAPI()
 line_bot_api = LineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
 parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
 
+@app.get("/")
+def health():
+    return {"status": "ok"}
+
 
 @app.post("/webhook")
 async def webhook(request: Request):
