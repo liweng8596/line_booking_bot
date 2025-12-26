@@ -1,15 +1,12 @@
-from datetime import datetime
-
-
 def build_day_slots(date, slots):
     """
-    slots: DB 回傳的任意 tuple
-    我們只取 start / end（倒數兩個欄位）
+    slots: DB 回傳的 tuple（欄位數不固定）
+    我們只使用最後兩個欄位：start_time, end_time
     """
     buttons = []
 
     for row in slots:
-        # ✅ 保證不管 DB 回傳幾個欄位都安全
+        # ✅ 不管 row 有幾個欄位，這兩個一定是時間
         start = row[-2]
         end = row[-1]
 
