@@ -32,7 +32,9 @@ from flex_coach_day import build_coach_day_flex
 from flex_cancel_confirm import build_cancel_confirm_flex
 from flex_confirm import build_confirm_flex
 from flex_date_picker import build_date_picker
-
+from db import init_db
+print("🚀 calling init_db")
+init_db()
 # ================= 初始化 =================
 load_dotenv()
 app = FastAPI()
