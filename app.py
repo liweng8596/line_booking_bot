@@ -24,7 +24,7 @@ from db import (
     get_all_slots_by_date,
     book_slot,
     get_user_booked_slots,
-    cancel_slot,
+    # cancel_slot,
 )
 
 from flex_day_slots import build_day_slots
@@ -246,18 +246,18 @@ def handle_message(event: MessageEvent, user_id: str):
         return
 
     # ❌ 取消
-    if text == "取消":
-        slots = get_user_booked_slots(user_id)
-        if not slots:
-            reply_text(event, "你目前沒有已預約的課程")
-            return
+    # if text == "取消":
+    #     slots = get_user_booked_slots(user_id)
+    #     if not slots:
+    #         reply_text(event, "你目前沒有已預約的課程")
+    #         return
 
-        flex = FlexSendMessage(
-            alt_text="取消預約",
-            contents=build_cancel_confirm_flex(slots)
-        )
-        line_bot_api.reply_message(event.reply_token, flex)
-        return
+    #     flex = FlexSendMessage(
+    #         alt_text="取消預約",
+    #         contents=build_cancel_confirm_flex(slots)
+    #     )
+    #     line_bot_api.reply_message(event.reply_token, flex)
+    #     return
 
     # fallback
     line_bot_api.reply_message(
