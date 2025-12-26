@@ -27,7 +27,7 @@ from db import (
 
 from flex_day_slots import build_day_slots
 from flex_coach_day import build_coach_day_flex
-from flex_cancel_confirm import build_cancel_list_flex
+from flex_cancel_confirm import build_cancel_confirm_flex
 from flex_confirm import build_confirm_flex
 from flex_date_picker import build_date_picker
 
@@ -215,7 +215,7 @@ def handle_message(event: MessageEvent, user_id: str):
 
         flex = FlexSendMessage(
             alt_text="取消預約",
-            contents=build_cancel_list_flex(slots)
+            contents=build_cancel_confirm_flex(slots)
         )
         line_bot_api.reply_message(event.reply_token, flex)
         return
